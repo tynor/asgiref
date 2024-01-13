@@ -1,6 +1,10 @@
 import pytest
 
-from asgiref.compatibility import double_to_single_callable, is_double_callable
+from asgiref.compatibility import (
+    double_to_single_callable,
+    is_double_callable,
+    is_single_callable,
+)
 from asgiref.testing import ApplicationCommunicator
 
 
@@ -72,6 +76,17 @@ def test_is_double_callable():
     assert is_double_callable(DoubleApplicationClassNestedFunction()) is True
     assert is_double_callable(single_application_function) is False
     assert is_double_callable(SingleApplicationClass()) is False
+
+
+def test_is_single_callable():
+    """
+    Tests that the signature matcher works as expected.
+    """
+    assert is_single_callable(single_application_function) is True
+    assert is_single_callable(SingleApplicationClass()) is True
+    assert is_single_callable(double_application_function) is False
+    assert is_single_callable(DoubleApplicationClass) is False
+    assert is_single_callable(DoubleApplicationClassNestedFunction()) is False
 
 
 def test_double_to_single_signature():

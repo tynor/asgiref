@@ -1,9 +1,23 @@
 import inspect
+import sys
 
 from .sync import iscoroutinefunction
+from .typing import (
+    ASGI2Application,
+    ASGI3Application,
+    ASGIApplication,
+    ASGIReceiveCallable,
+    ASGISendCallable,
+    Scope,
+)
+
+if sys.version_info >= (3, 10):
+    from typing import TypeGuard
+else:
+    from typing_extensions import TypeGuard
 
 
-def is_double_callable(application):
+def is_double_callable(application: ASGIApplication) -> TypeGuard[ASGI2Application]:
     """
     Tests to see if an application is a legacy-style (double-callable) application.
     """
@@ -25,24 +39,37 @@ def is_double_callable(application):
     return not iscoroutinefunction(application)
 
 
-def double_to_single_callable(application):
+def is_single_callable(application: ASGIApplication) -> TypeGuard[ASGI3Application]:
+    """
+    Tests to see if an application is a new-style (single-callable) application.
+    """
+    return not is_double_callable(application)
+
+
+def double_to_single_callable(application: ASGI2Application) -> ASGI3Application:
     """
     Transforms a double-callable ASGI application into a single-callable one.
     """
 
-    async def new_application(scope, receive, send):
+    async def new_application(
+        scope: Scope,
+        receive: ASGIReceiveCallable,
+        send: ASGISendCallable,
+    ) -> None:
         instance = application(scope)
-        return await instance(receive, send)
+        await instance(receive, send)
 
     return new_application
 
 
-def guarantee_single_callable(application):
+def guarantee_single_callable(application: ASGIApplication) -> ASGI3Application:
     """
     Takes either a single- or double-callable application and always returns it
     in single-callable style. Use this to add backwards compatibility for ASGI
     2.0 applications to your server/test harness/etc.
     """
-    if is_double_callable(application):
-        application = double_to_single_callable(application)
-    return application
+    if is_single_callable(application):
+        return application
+    elif is_double_callable(application):
+        return double_to_single_callable(application)
+    raise ValueError("Neither a single nor a double callable was provided")
